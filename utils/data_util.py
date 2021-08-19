@@ -99,9 +99,14 @@ def fix_labels(image_dir, label_dir):
 
 
     
-def dcm_to_train_set(db = "datasets/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqlite", source_dir = "datasets/archive",\
+def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqlite", source_dir = "original_data/archive",\
                          dest_dir = "datasets/train", tile_size = 1000, cell_size = 40):
-        
+    
+    if not os.path.isdir(dest_dir):                                                           
+        os.mkdir(dest_dir)
+        os.mkdir(dest_dir+"/images")
+        os.mkdir(dest_dir+"/labels")
+
     DB = sqlite3.connect(db)
     cur = DB.cursor()
 
@@ -110,32 +115,37 @@ def dcm_to_train_set(db = "datasets/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqli
     datasets = glob(source_dir +"/*.dcm")
 
     file_names = []
-    folder_names = []
     for data in datasets:
         temp = data.split("\\")[1]
-        file_names.append(temp)
-        folder_names.append(temp.split('.')[0])
+        file_names.append(temp.split('.')[0])
 
-    folder_names.sort()
     file_names.sort()
-
-    for folder_name, file_name in zip(folder_names, file_names):
-        print(folder_name)
+    files = len(file_names)
+    file_count = 0
+    for file_name in  file_names:
+        file_count += 1
+        print(file_count, "/", files, file_name, end=" : ")
         
         # filename -> slide 번호, width, height 추출
         slide = cur.execute(f"""SELECT uid, width, height
                                 from Slides 
-                                where filename == "{file_name}" """).fetchall()
+                                where filename == "{file_name+".dcm"}" """).fetchall()
         slide = slide[0]
 
         save_dir = dest_dir + '/'
         
         # 이미지 읽기 위한 Dicom Dataset 객체 객체 생성
-        ds = ReadableDicomDataset(source_dir + file_name)
+        ds = ReadableDicomDataset(source_dir+ "/" + file_name + ".dcm")
+
+        tiles = ds.geometry_imsize
+        tiles = round(tiles[0],-3)/1000 * round(tiles[1]+500,-3)/1000
+
         idx = -1
         for width in range(0,slide[1]+IMGSZ,IMGSZ):
             for height in range(0,slide[2]+IMGSZ,IMGSZ):
                 idx += 1
+                if idx % 500 == 0:
+                    print(file_name,":",idx, "/", tiles)
                 location = (width, height)
                 size = (IMGSZ,IMGSZ)
                 # cells = (현재 location에서의 x, y, uid)
@@ -145,9 +155,9 @@ def dcm_to_train_set(db = "datasets/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqli
                                 coordinateY>{location[1]} and coordinateY<{location[1]+size[1]}""").fetchall()
                 if len(cells) > 0:
                     img = Image.fromarray(ds.read_region(location=location,size=size))
-                    img.save(save_dir + "images/" + folder_name + "_" + str(idx) + ".png", 'png')
+                    img.save(save_dir + "images/" + file_name + "_" + str(idx) + ".png", 'png')
                     
-                    file = save_dir + "labels/" + folder_name + "_" + str(idx) + ".txt"
+                    file = save_dir + "labels/" + file_name + "_" + str(idx) + ".txt"
                     if os.path.isfile(file):
                         os.remove(file)
 
