@@ -63,7 +63,7 @@ def fix_labels(image_dir, label_dir):
 
     remove_count = 0
     fix_count = 0
-    
+    seven_to_zero_count = 0
     count = -1
     for text in file_lists:
         count += 1
@@ -77,11 +77,18 @@ def fix_labels(image_dir, label_dir):
             fixed_cells = []
 
             for cell in cells:
-                temp_cell = cell.strip('\n').split()
+                temp_cell = cell.strip().split()
+                print(temp_cell)
+
+                if '7' in temp_cell[0]:
+                    temp_cell[0] = '0'
+                    seven_to_zero_count += 1
+
                 if float(temp_cell[1]) + float(temp_cell[3])/2 > 1 or float(temp_cell[1]) - float(temp_cell[3])/2 < 0 or \
                             float(temp_cell[2]) + float(temp_cell[4])/2 > 1 or float(temp_cell[2]) - float(temp_cell[4])/2 < 0 :
                     temp_cell = None
                     fix_count += 1
+
                 if temp_cell != None:
                     fixed_cells.append(temp_cell)
         
@@ -95,12 +102,12 @@ def fix_labels(image_dir, label_dir):
             os.remove(png_file)
             remove_count += 1
     
-    return remove_count, fix_count
+    return remove_count, fix_count, seven_to_zero_count
 
 
     
 def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqlite", source_dir = "original_data/archive",\
-                         dest_dir = "datasets/train", tile_size = 1000, cell_size = 40):
+                         dest_dir = "datasets/new", tile_size = 640, cell_size = 40):
     
     if not os.path.isdir(dest_dir):                                                           
         os.mkdir(dest_dir)
@@ -124,7 +131,6 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
     file_count = 0
     for file_name in  file_names:
         file_count += 1
-        print(file_count, "/", files, file_name, end=" : ")
         
         # filename -> slide 번호, width, height 추출
         slide = cur.execute(f"""SELECT uid, width, height
@@ -138,14 +144,16 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
         ds = ReadableDicomDataset(source_dir+ "/" + file_name + ".dcm")
 
         tiles = ds.geometry_imsize
-        tiles = round(tiles[0],-3)/1000 * round(tiles[1]+500,-3)/1000
+        tiles = int(tiles[0]/IMGSZ) * int(tiles[1]/IMGSZ)
 
         idx = -1
-        for width in range(0,slide[1]+IMGSZ,IMGSZ):
-            for height in range(0,slide[2]+IMGSZ,IMGSZ):
+        for height in range(0,slide[2]+IMGSZ,IMGSZ):
+            for width in range(0,slide[1]+IMGSZ,IMGSZ):
                 idx += 1
+                txt_file = save_dir + "labels/" + file_name + "_" + str(idx) + ".txt"
+
                 if idx % 500 == 0:
-                    print(file_name,":",idx, "/", tiles)
+                    print(file_count, "/", files, file_name,":",idx, "/", tiles)
                 location = (width, height)
                 size = (IMGSZ,IMGSZ)
                 # cells = (현재 location에서의 x, y, uid)
@@ -154,24 +162,34 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
                                 coordinateX>{location[0]} and coordinateX<{location[0]+size[0]} and 
                                 coordinateY>{location[1]} and coordinateY<{location[1]+size[1]}""").fetchall()
                 if len(cells) > 0:
+                    lines = []
+                    for cell in cells:
+                        # Annotations_coordinates에는 존재하지만 해당 annoid가 Annotations에 존재하지 않는 경우 저장하지 않음.
+                        try:
+                            cell_class = cur.execute(f"""SELECT agreedClass FROM Annotations where uid == {cell[2]}""").fetchall()[0][0]
+
+                            label, x, y, w, h = cell_class, cell[0]/IMGSZ, cell[1]/IMGSZ, cell_size/IMGSZ, cell_size/IMGSZ
+
+                            if label == 7:
+                                label = 0
+
+                            if x - w/2 <= 0 or x + w/2 >= 1 or  y - h/2 <= 0 or y + h/2 >= 1:
+                                continue
+
+                            line = str(label) + " " + str(x) + " " + str(y) + " " + str(w) + " " + str(h) + "\n"
+                            lines.append(line)
+                        except:
+                            None
+
+                    if len(lines) > 0:
+                        with open(txt_file, 'w')as f:
+                            for line in lines:
+                                f.write(line)
+
+                if os.path.exists(txt_file):
                     img = Image.fromarray(ds.read_region(location=location,size=size))
                     img.save(save_dir + "images/" + file_name + "_" + str(idx) + ".png", 'png')
-                    
-                    file = save_dir + "labels/" + file_name + "_" + str(idx) + ".txt"
-                    if os.path.isfile(file):
-                        os.remove(file)
 
-                    with open(file, 'w') as f:
-                        for cell in cells:
-                            # Annotations_coordinates에는 존재하지만 해당 annoid가 Annotations에 존재하지 않는 경우 저장하지 않음.
-                            try:
-                                cell_class = cur.execute(f"""SELECT agreedClass FROM Annotations where uid == {cell[2]}""").fetchall()[0][0]
-                                label, x, y, w, h = cell_class, cell[0]/IMGSZ, cell[1]/IMGSZ, cell_size/IMGSZ, cell_size/IMGSZ
-                                
-                                line = str(label) + " " + str(x) + " " + str(y) + " " + str(w) + " " + str(h) + "\n"
-                                f.write(line)
-                            except:
-                                None
 
 def get_all_cells(label_dir):
     target_dir = label_dir+"/"
@@ -185,6 +203,8 @@ def get_all_cells(label_dir):
             lines = f.readlines()
             for line in lines:
                 temp = line.strip().split()
+                if temp[0] == 7 or temp[0] == '7':
+                    print(temp)
                 cells.append(temp)
 
     cells = pd.DataFrame(cells, columns=["label", "x", "y", "w", "h"])

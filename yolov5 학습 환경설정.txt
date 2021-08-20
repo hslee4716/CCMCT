@@ -1,0 +1,18 @@
+# update
+conda update -yn base -c defaults conda
+
+# install Lib for YOLOv5
+conda install -c anaconda cython numpy pillow scipy seaborn pandas requests
+conda install -c conda-forge matplotlib pyyaml tensorboard tqdm opencv 
+
+# install pytorch
+conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+
+# install cudnn
+conda install -c conda-forge cudnn==8.1.0.77
+
+# Extra
+conda install -c conda-forge onnx
+
+# conda install tensorboard==2.5.1
+
