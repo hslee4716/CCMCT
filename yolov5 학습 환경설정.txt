@@ -3,16 +3,23 @@ conda update -yn base -c defaults conda
 
 # install Lib for YOLOv5
 conda install -c anaconda cython numpy pillow scipy seaborn pandas requests
-conda install -c conda-forge matplotlib pyyaml tensorboard tqdm opencv 
+conda install -c conda-forge matplotlib pyyaml tqdm opencv 
 
 # install pytorch
+window
 conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+
+linux rtx 390
+pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
+
+
 
 # install cudnn
 conda install -c conda-forge cudnn==8.1.0.77
 
-# Extra
-conda install -c conda-forge onnx
+conda install tensorboard==2.6.0
 
-# conda install tensorboard==2.5.1
+# Extra
+# conda install -c conda-forge onnx
+
 
