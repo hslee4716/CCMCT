@@ -1,0 +1,7 @@
+img640_epochs230
+mitotic 8360 imgs -> 3889 labels / P = 0.71 / R = 0.934 / map : .5 = 0.92 / .5 ~ .95 = 0.561
+mitotic 8360 imgs -> 3889 labels / P = 0.71 / R = 0.934 / map : .5 = 0.92 / .5 ~ .95 = 0.561
+
+img320_epochs250
+mitotic 12921imgs -> 3417 labels / P = 0.737 / R = 0.939 / map : .5 = 0.922 / .5 ~ .95 = 0.574
+mitotic lookalike -> 2117/ P = 0.509/ R = 0.676 / map : .5 = 0.597 / .5 ~ .95 = 0.395
