@@ -61,17 +61,11 @@ class ReadableDicomDataset():
 def fix_labels(image_dir, label_dir):
     file_lists = glob(label_dir + "/*.txt")
 
-    remove_count = 0
-    fix_count = 0
-    seven_to_zero_count = 0
-    count = -1
     for text in file_lists:
-        count += 1
         temp = text.split("/")[-1].split(".")[0]
         txt_file = label_dir + "/" + temp + ".txt"
         png_file = image_dir + "/" + temp + ".png"
-        if count > 10000:
-            break
+
         with open(txt_file, 'r') as f:
             cells = f.readlines()
             fixed_cells = []
@@ -82,12 +76,13 @@ def fix_labels(image_dir, label_dir):
 
                 if '7' in temp_cell[0]:
                     temp_cell[0] = '0'
-                    seven_to_zero_count += 1
+                
+                if '4' in temp_cell[0]:
+                    temp_cell = None
 
                 if float(temp_cell[1]) + float(temp_cell[3])/2 > 1 or float(temp_cell[1]) - float(temp_cell[3])/2 < 0 or \
                             float(temp_cell[2]) + float(temp_cell[4])/2 > 1 or float(temp_cell[2]) - float(temp_cell[4])/2 < 0 :
                     temp_cell = None
-                    fix_count += 1
 
                 if temp_cell != None:
                     fixed_cells.append(temp_cell)
@@ -97,12 +92,9 @@ def fix_labels(image_dir, label_dir):
                 f.write((' ').join(fixed_cell) + '\n')
 
         if len(fixed_cells) == 0 or len(cells) == 0:
-            f.close()
             os.remove(txt_file)
             os.remove(png_file)
-            remove_count += 1
-    
-    return remove_count, fix_count, seven_to_zero_count
+
 
 
     
@@ -123,8 +115,7 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
 
     file_names = []
     for data in datasets:
-        temp = data.split("/")[-1]
-        file_names.append(temp.split('.')[0])
+        file_names.append(data.split("/")[-1].split('.')[0])
 
     file_names.sort()
     files = len(file_names)
@@ -196,7 +187,7 @@ def get_all_cells(label_dir):
     txt_list = glob(target_dir + "*.txt")
     cells = []
     for txt in txt_list:
-        file = txt.split("\\")[1]
+        file = txt.split("/")[-1]
         file = target_dir + file
 
         with open(file, 'r') as f:
