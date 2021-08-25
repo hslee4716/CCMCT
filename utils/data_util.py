@@ -173,7 +173,7 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
                             if label == 7:
                                 label = 0
 
-                            if x - w/2 <= 0 or x + w/2 >= 1 or  y - h/2 <= 0 or y + h/2 >= 1:
+                            if x - w/2 <= 0 or x + w/2 >= 1 or  y - h/2 <= 0 or y + h/2 >= 1 or label == 4:
                                 continue
 
                             line = str(label) + " " + str(x) + " " + str(y) + " " + str(w) + " " + str(h) + "\n"
