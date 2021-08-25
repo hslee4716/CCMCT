@@ -12,6 +12,8 @@ import io
 import pydicom
 import os
 import sqlite3
+import time
+
 
 
 class ReadableDicomDataset():
@@ -58,7 +60,7 @@ class ReadableDicomDataset():
         return bigimg[lu_yo:lu_yo+size[1],lu_xo:lu_xo+size[0]]
 
 
-def fix_labels(image_dir, label_dir):
+def yolo_fix_labels(image_dir, label_dir):
     file_lists = glob(label_dir + "/*.txt")
 
     for text in file_lists:
@@ -98,7 +100,7 @@ def fix_labels(image_dir, label_dir):
 
 
     
-def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqlite", source_dir = "original_data/archive",\
+def yolo_dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqlite", source_dir = "original_data/archive",\
                          dest_dir = "datasets/new", tile_size = 640, cell_size = 40):
     
     if not os.path.isdir(dest_dir):                                                           
@@ -108,9 +110,7 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
 
     DB = sqlite3.connect(db)
     cur = DB.cursor()
-
     IMGSZ = tile_size
-
     datasets = glob(source_dir +"/*.dcm")
 
     file_names = []
@@ -121,6 +121,7 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
     file_names.sort()
     files = len(file_names)
     file_count = 0
+
     for file_name in  file_names:
         file_count += 1
         
@@ -181,6 +182,94 @@ def dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm
                 if os.path.exists(txt_file):
                     img = Image.fromarray(ds.read_region(location=location,size=size))
                     img.save(save_dir + "images/" + file_name + "_" + str(idx) + ".png", 'png')
+
+
+def m2det_dcm_to_train_set(db = "original_data/archive/MITOS_WSI_CCMCT_ODAEL_train_dcm.sqlite", source_dir = "original_data/archive",\
+                         dest_dir = "datasets/new", tile_size = 640, cell_size = 40, LABELS = ["Mitotic_figure_lookalike", "granulocyte", "mitotic_figure", "tumor_cell"]):
+
+    DB = sqlite3.connect(db)
+    cur = DB.cursor()
+    IMGSZ = tile_size
+    datasets = glob(source_dir +"/*.dcm")
+
+    if not os.path.isdir(dest_dir):                                                           
+        os.mkdir(dest_dir)
+        
+    if not os.path.isdir(dest_dir+"/images"):                                                           
+        os.mkdir(dest_dir+"/images")
+
+    file_names = []
+    for data in datasets:
+        temp = data.split("\\")[1]
+        file_names.append(temp.split('.')[0])
+
+    file_names.sort()
+    file_len = len(file_names)
+    file_count = 0
+    f = open(dest_dir+"/"+"train.csv", 'w')
+
+    for file_name in  file_names:
+        file_count += 1
+        print(file_count)
+        # filename -> slide 번호, width, height 추출
+        slide = cur.execute(f"""SELECT uid, width, height
+                                from Slides 
+                                where filename == "{file_name+".dcm"}" """).fetchall()
+        slide = slide[0]
+        
+        # 이미지 읽기 위한 Dicom Dataset 객체 객체 생성
+        ds = ReadableDicomDataset(source_dir+ "/" + file_name + ".dcm")
+        tiles = ds.geometry_imsize
+        tiles = int(tiles[0]/IMGSZ) * int(tiles[1]/IMGSZ)
+
+        Annotations = pd.DataFrame(cur.execute(f"""SELECT uid, agreedClass FROM Annotations WHERE slide == {slide[0]}""").fetchall(),\
+                                    columns=["annoid", "class"]).set_index('annoid')
+       
+        cells = pd.DataFrame(cur.execute(f"""SELECT coordinateX, coordinateY, annoId
+                                from Annotations_coordinates where slide=={slide[0]}""").fetchall(),\
+                                    columns=['x', 'y', 'annoid'])
+
+        idx = -1
+        for col in range(0,slide[2]+IMGSZ,IMGSZ):
+            for row in range(0,slide[1]+IMGSZ,IMGSZ):
+                idx += 1
+
+                if idx % 500 == 0:
+                    print(file_count, "/", file_len, file_name,":",idx, "/", tiles)
+
+                location = (row, col)
+                
+                local_cells = cells[['x','y','annoid']][cells['x'] > location[0]][cells['y'] > location[1]]\
+                    [cells['x']<location[0]+IMGSZ][cells['y']<location[1]+IMGSZ]
+                local_cells['x'] -= location[0]
+                local_cells['y'] -= location[1]
+                
+                if local_cells.empty:
+                    f.write("images/"+file_name+"_"+str(idx)+'.dcm ' + ",,,,,")
+
+                flag = 0
+                for cell in local_cells.values.tolist():
+                    label = Annotations.loc[cell[2]].values[0]
+                   
+                    x, y, w, h = cell[0]-cell_size//2 , cell[1]-cell_size//2, cell[0] + cell_size//2, cell[1] + cell_size//2
+
+                    if label == 7:
+                        label = 0
+                    elif label == 4 or x <= 0 or y <= 0 or w >= IMGSZ or h >= IMGSZ:
+                        continue
+                    
+                    img_name, label = "images/"+file_name+"_"+str(idx)+'.dcm ',  LABELS[label]
+
+                    line = dest_dir+"/"+img_name + "," + str(x) + "," + str(y) + "," + str(w) + "," + str(h) + "," + label + "\n"
+                    f.write(line)
+                
+                img = Image.fromarray(ds.read_region(location=location,size=(IMGSZ,IMGSZ)))
+                img.save(dest_dir + "/images/" + file_name + "_" + str(idx) + ".png", 'png')
+                
+    f.close()
+
+                
+
 
 
 def get_all_cells(label_dir):

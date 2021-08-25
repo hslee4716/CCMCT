@@ -1,0 +1,4 @@
+Mitotic_figure_lookalike,0
+granulocyte,1
+mitotic_figure,2
+tumor_cell,3
