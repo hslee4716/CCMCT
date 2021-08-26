@@ -241,6 +241,7 @@ def yolo_dcm_to_train_set_includeNone(db = "original_data/archive/MITOS_WSI_CCMC
                 local_cells['y'] -= location[1]
 
                 lines = []
+                flag = 0
                 for cell in local_cells.values.tolist():
                     try:
                         label = Annotations.loc[cell[2]].values[0]
@@ -259,14 +260,17 @@ def yolo_dcm_to_train_set_includeNone(db = "original_data/archive/MITOS_WSI_CCMC
                     
                     line = str(label) + " " + str(x) + " " + str(y) + " " + str(w) + " " + str(h) + "\n"
                     lines.append(line)
+                    flag = 1
 
-                with open(dest_dir+'/labels/'+file_name+'_'+str(idx)+'.txt', 'w') as f:
-                    for l in lines:
-                        f.write(l)
+                # 빈 라벨의 경우 1/10만 학습, 아니면 124만장 나옴
+                if flag == 1 or idx % 10 == 0:
+                    with open(dest_dir+'/labels/'+file_name+'_'+str(idx)+'.txt', 'w') as f:
+                        for l in lines:
+                            f.write(l)
 
-                # # 이미지 저장
-                # img = Image.fromarray(ds.read_region(location=location,size=(IMGSZ,IMGSZ)))
-                # img.save(dest_dir + "/images/" + file_name + "_" + str(idx) + ".png", 'png')
+                    # 이미지 저장
+                    img = Image.fromarray(ds.read_region(location=location,size=(IMGSZ,IMGSZ)))
+                    img.save(dest_dir + "/images/" + file_name + "_" + str(idx) + ".png", 'png')
 
 
 ## M2det expired!
