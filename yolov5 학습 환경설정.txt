@@ -22,4 +22,6 @@ conda install tensorboard==2.6.0
 # Extra
 # conda install -c conda-forge onnx
 
+## 슈파스메일 : jhhyun@spass.ai
+
 
