@@ -16,8 +16,6 @@ import os
 import sqlite3
 import time
 
-
-
 class ReadableDicomDataset():
     def __init__(self, filename):
         self._ds = pydicom.dcmread(filename)
