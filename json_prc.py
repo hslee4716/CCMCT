@@ -1,6 +1,9 @@
 import json
 import pandas as pd
 from pandas.core.indexes import category
+from sklearn.model_selection import train_test_split
+import numpy as np
+
 temp_dict = {
     "car": {"index": [1,2,3,4,5]},
     "horse" : 100
@@ -73,3 +76,9 @@ class coco():
                 "name": label
             }
             categories.append(category)
+
+
+a = np.array([1,2,3,4,5,6,7,8,9,10,11,12])
+
+b, c = train_test_split(a, test_size=0.3)
+print(b, c)

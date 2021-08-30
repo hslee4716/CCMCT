@@ -182,7 +182,7 @@ def yolo_dcm_to_train_set_includeNone(db = "original_data/archive/MITOS_WSI_CCMC
                     flag = 1
 
                 # 빈 라벨의 경우 1/10만 학습, 아니면 124만장 나옴
-                if flag == 1 or idx % 10 == 0:
+                if flag == 1 or idx % 100 == 0:
                     with open(dest_dir+'/labels/'+file_name+'_'+str(idx)+'.txt', 'w') as f:
                         for l in lines:
                             f.write(l)
@@ -200,43 +200,43 @@ def yolo_train_test_split(source_dir="datasets/origin", dest_dir = "datasets/New
     for file_name in files:
         file_lists.append(file_name.split("\\")[1].split(".")[0])
 
-    train_files, test_files = train_test_split(file_lists, random_state=7, test_size=0.2)
-    print(len(train_files), len(test_files))
+    train_files, val_files = train_test_split(file_lists, random_state=7, test_size=0.2)
+    print(len(train_files), len(val_files))
 
-    with open(source_dir+"/train.txt", 'w') as f:
-        for train_file in train_files:
-            f.write(train_file+"\n")
+    # with open(source_dir+"/train.txt", 'w') as f:
+    #     for train_file in train_files:
+    #         f.write(train_file+"\n")
 
-    with open(source_dir+"/val.txt", 'w') as f:
-        for test_file in test_files:
-            f.write(test_file+"\n")
+    # with open(source_dir+"/val.txt", 'w') as f:
+    #     for test_file in test_files:
+    #         f.write(test_file+"\n")
 
-    # train test split 칸에서 작성된 txt파일에 따라 이미지, 라벨 다른 폴더로 분할
+    # # train test split 칸에서 작성된 txt파일에 따라 이미지, 라벨 다른 폴더로 분할
 
     img_dest = dest_dir + "/images"
     label_dest = dest_dir + "/labels"
 
-    if not os.path.exists(dest_dir):
-        os.makedirs(dest_dir)
+    # if not os.path.exists(dest_dir):
+    #     os.makedirs(dest_dir)
 
-    if not os.path.exists(img_dest):
-        os.makedirs(img_dest)
-        os.makedirs(img_dest + "/train")
-        os.makedirs(img_dest + "/val")
+    # if not os.path.exists(img_dest):
+    #     os.makedirs(img_dest)
+    #     os.makedirs(img_dest + "/train")
+    #     os.makedirs(img_dest + "/val")
 
-    if not os.path.exists(label_dest):
-        os.makedirs(label_dest)
-        os.makedirs(label_dest + "/train")
-        os.makedirs(label_dest + "/val")
+    # if not os.path.exists(label_dest):
+    #     os.makedirs(label_dest)
+    #     os.makedirs(label_dest + "/train")
+    #     os.makedirs(label_dest + "/val")
 
-    train_txt = source_dir + "/train.txt"
-    val_txt = source_dir + "/val.txt"
+    # train_txt = source_dir + "/train.txt"
+    # val_txt = source_dir + "/val.txt"
 
-    with open(train_txt, 'r') as f:
-        train_files = f.readlines()
+    # with open(train_txt, 'r') as f:
+    #     train_files = f.readlines()
 
-    with open(val_txt, 'r') as f:
-        val_files = f.readlines()    
+    # with open(val_txt, 'r') as f:
+    #     val_files = f.readlines()    
 
     for train_file in train_files:
         temp = train_file.strip()
